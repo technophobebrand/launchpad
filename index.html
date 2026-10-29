@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="nl" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webapp Launchpad - Startpagina</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'app-blue': '#4F86F7',
+                        'app-blue-hover': '#3b71e8',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Drag and Drop styling */
+        .tile-card.dragging {
+            opacity: 0.4;
+            transform: scale(0.98);
+        }
+        .tile-card.drag-over {
+            border-color: #4F86F7 !important;
+            box-shadow: 0 0 0 2px rgba(79, 134, 247, 0.4);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans text-slate-800 antialiased select-none bg-slate-100">
+
+    <!-- HEADER BAR -->
+    <header class="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between shadow-xs z-20 shrink-0">
+        <!-- Left: App Branding & Title -->
+        <div class="flex items-center space-x-3">
+            <div class="p-2.5 bg-app-blue/10 text-app-blue rounded-xl shadow-2xs">
+                <i data-lucide="layout-grid" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold text-slate-800 flex items-center gap-2 leading-tight">
+                    <span>Webapp Launchpad</span>
+                    <span id="app-count-badge" class="bg-slate-100 text-slate-600 text-xs px-2.5 py-0.5 rounded-full font-medium border border-slate-200">0 apps</span>
+                </h1>
+                <p class="text-[11px] text-slate-500 font-medium hidden sm:block">Centrale startpagina & dashboard voor alle webapplicaties</p>
+            </div>
+        </div>
+
+        <!-- Right: Actions, Import/Export, Launch All & Add -->
+        <div class="flex items-center space-x-2 md:space-x-3">
+            
+            <!-- Quick Launch All Button -->
+            <button onclick="launchAllApps()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm font-semibold px-3 py-2 rounded-lg shadow-xs transition active:scale-95" title="Open alle geopende/gefilterde URL's in nieuwe tabbladen">
+                <i data-lucide="rocket" class="w-4 h-4"></i>
+                <span>Start Alles</span>
+            </button>
+
+            <div class="h-6 w-[1px] bg-slate-200 hidden sm:block"></div>
+
+            <!-- Import / Export Controls -->
+            <div class="hidden sm:flex items-center space-x-1">
+                <input type="file" id="json-file-input" accept=".json" class="hidden" onchange="importJSONConfig(event)">
+                <button onclick="document.getElementById('json-file-input').click()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium px-2.5 py-2 rounded-lg transition border border-slate-200" title="Importeer tegels uit JSON-bestand">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                    <span class="hidden md:inline">Open</span>
+                </button>
+                <button onclick="exportToJSON()" class="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium px-2.5 py-2 rounded-lg transition border border-slate-200" title="Exporteer tegels naar JSON-bestand">
+                    <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                    <span class="hidden md:inline">Bewaar</span>
+                </button>
+            </div>
+
+            <div class="h-6 w-[1px] bg-slate-200"></div>
+
+            <!-- Add Tile Button -->
+            <button onclick="openTileModal()" class="flex items-center gap-1.5 bg-app-blue hover:bg-app-blue-hover text-white text-xs md:text-sm font-semibold px-3.5 py-2 rounded-lg shadow-xs transition active:scale-95">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Tegel Toevoegen</span>
+                <span class="sm:hidden">Nieuw</span>
+            </button>
+
+            <!-- Reset / Restore Default -->
+            <button onclick="resetToDemoData()" class="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition" title="Herstel Standaard Voorbeelden">
+                <i data-lucide="rotate-ccw" class="w-4.5 h-4.5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- SUBHEADER / TOOLBAR (Search & Category Filter) -->
+    <div class="bg-white border-b border-slate-200 px-4 md:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-sm shrink-0">
+        <!-- Search bar -->
+        <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 text-xs flex-1 max-w-md focus-within:ring-2 focus-within:ring-app-blue/40 focus-within:bg-white transition">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
+            <input type="text" id="search-input" oninput="applyFilterAndSearch()" placeholder="Zoek op appnaam, categorie of URL..." class="w-full bg-transparent border-none text-xs text-slate-800 focus:outline-none placeholder-slate-400">
+            <button id="search-clear-btn" onclick="clearSearch()" class="hidden text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+        </div>
+
+        <!-- Filter tabs for Categories -->
+        <div id="category-chips-container" class="flex items-center gap-1.5 overflow-x-auto py-0.5 custom-scrollbar max-w-full">
+            <!-- Dynamic Category Chips -->
+        </div>
+    </div>
+
+    <!-- MAIN WORKSPACE / GRID DISPLAY -->
+    <main class="flex-1 overflow-y-auto p-4 md:p-8">
+        <div class="max-w-7xl mx-auto space-y-6">
+            
+            <!-- Information Banner -->
+            <div id="popup-warning-banner" class="bg-blue-50/80 border border-blue-200/80 rounded-xl p-3.5 flex items-center justify-between text-xs text-blue-800 shadow-2xs">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="info" class="w-4 h-4 text-app-blue shrink-0"></i>
+                    <span><strong>Tip:</strong> Gebruik 'Start Alles' om alle URL's te openen. Zorg er wel voor dat <strong>pop-ups toegestaan zijn</strong> in je browser voor deze pagina. Drag & Drop de tegels om ze naar wens te rangschikken.</span>
+                </div>
+                <button onclick="document.getElementById('popup-warning-banner').remove()" class="text-blue-600 hover:text-blue-900 p-1 rounded-md transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- TILES GRID -->
+            <div id="tiles-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4.5">
+                <!-- Dynamic Tiles Rendered Here -->
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="empty-state" class="hidden flex flex-col items-center justify-center p-12 text-center text-slate-400 bg-white rounded-2xl border border-dashed border-slate-300">
+                <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-3 border border-slate-200 shadow-2xs">
+                    <i data-lucide="app-window" class="w-8 h-8 text-slate-400"></i>
+                </div>
+                <h3 class="font-semibold text-slate-700 text-sm">Geen applicaties gevonden</h3>
+                <p class="text-xs text-slate-400 mt-1 max-w-xs">Er zijn geen tegels die voldoen aan de zoekopdracht of filter. Voeg er een toe of wis de filter.</p>
+                <button onclick="openTileModal()" class="mt-4 bg-app-blue hover:bg-app-blue-hover text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-2xs flex items-center gap-1.5">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Eerste tegel maken</span>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="h-9 bg-white border-t border-slate-200 px-4 md:px-6 flex items-center justify-between text-xs text-slate-500 shrink-0">
+        <div class="flex items-center gap-4">
+            <span id="footer-count-text">0 van 0 tegels getoond</span>
+            <span class="hidden sm:inline-block text-slate-300">|</span>
+            <span class="hidden sm:inline text-slate-400">Klik op een tegel om te openen • Gebruik potlood-icoon om te bewerken</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span class="text-slate-600 font-medium">Status: Gereed</span>
+        </div>
+    </footer>
+
+    <!-- MODAL: ADD / EDIT TILE -->
+    <div id="modal-tile" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200 transform transition-all">
+            <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                <div class="flex items-center gap-2.5">
+                    <div id="modal-icon-badge" class="p-2 bg-app-blue/10 text-app-blue rounded-lg">
+                        <i data-lucide="layout" class="w-5 h-5"></i>
+                    </div>
+                    <h3 id="modal-tile-title" class="font-bold text-slate-800 text-base">Tegel Toevoegen</h3>
+                </div>
+                <button onclick="closeTileModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition hover:bg-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form id="form-tile" onsubmit="handleTileFormSubmit(event)" class="p-5 space-y-4">
+                <input type="hidden" id="tile-id">
+
+                <!-- Title & Category -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Naam / Titel *</label>
+                        <input type="text" id="tile-name" required placeholder="bijv. Actielijst Tool" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-blue outline-none transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Categorie / Tag</label>
+                        <input type="text" id="tile-category" list="datalist-categories" placeholder="bijv. Productiviteit, Dev..." class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-blue outline-none transition bg-white">
+                        <datalist id="datalist-categories"></datalist>
+                    </div>
+                </div>
+
+                <!-- URL -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Webpagina URL *</label>
+                    <input type="url" id="tile-url" required placeholder="https://voorbeeld.nl/app" class="w-full text-xs p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-app-blue outline-none transition">
+                </div>
+
+                <!-- Icon Selector -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Symbool / Icoon</label>
+                    <div class="grid grid-cols-6 gap-2 max-h-36 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50" id="icon-selector-grid">
+                        <!-- Icons populated by JS -->
+                    </div>
+                    <input type="hidden" id="tile-icon" value="layout">
+                </div>
+
+                <!-- Color Accent Selection -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Accentkleur</label>
+                    <div class="flex items-center gap-2 flex-wrap" id="color-selector-container">
+                        <!-- Color buttons populated by JS -->
+                    </div>
+                    <input type="hidden" id="tile-color" value="#4F86F7">
+                </div>
+
+                <!-- Modal Actions -->
+                <div class="pt-3 border-t border-slate-200 flex justify-between items-center">
+                    <button type="button" id="btn-delete-tile" onclick="deleteCurrentTile()" class="px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold transition hidden">
+                        Verwijderen
+                    </button>
+                    <div class="flex justify-end gap-2 ml-auto">
+                        <button type="button" onclick="closeTileModal()" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                            Annuleren
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-app-blue hover:bg-app-blue-hover text-white rounded-lg text-xs font-semibold transition shadow-xs flex items-center gap-1.5">
+                            <i data-lucide="check" class="w-4 h-4"></i>
+                            <span>Opslaan</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CONFIRM DELETE MODAL -->
+    <div id="modal-confirm" class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 border border-slate-200 space-y-4 text-center">
+            <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h4 class="font-bold text-slate-800 text-base">Tegel Verwijderen</h4>
+                <p class="text-xs text-slate-500 mt-1" id="confirm-message">Weet je zeker dat je deze tegel wilt verwijderen?</p>
+            </div>
+            <div class="flex justify-center gap-2 pt-2">
+                <button onclick="closeConfirmModal(false)" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-50 transition">
+                    Annuleren
+                </button>
+                <button onclick="closeConfirmModal(true)" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition shadow-xs">
+                    Verwijderen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Preset Icon Palette
+        const AVAILABLE_ICONS = [
+            'layout', 'check-square', 'map', 'database', 'rocket', 'wrench', 
+            'line-chart', 'shield', 'layers', 'globe', 'file-text', 'users', 
+            'settings', 'terminal', 'cpu', 'folder-kanban', 'box', 'bar-chart-3', 
+            'compass', 'cloud', 'zap', 'bookmark', 'activity', 'code'
+        ];
+
+        // Color Palettes
+        const COLOR_OPTIONS = [
+            { name: 'App Blue', hex: '#4F86F7' },
+            { name: 'Emerald', hex: '#10B981' },
+            { name: 'Amber', hex: '#F59E0B' },
+            { name: 'Rose', hex: '#EF4444' },
+            { name: 'Indigo', hex: '#6366F1' },
+            { name: 'Teal', hex: '#14B8A6' },
+            { name: 'Purple', hex: '#A855F7' },
+            { name: 'Slate', hex: '#64748B' }
+        ];
+
+        // Demo Data (matching reference apps look and feel)
+        const DEFAULT_TILES = [
+            {
+                id: 'tile-1',
+                name: 'Actielijst Tool',
+                url: 'https://voorbeeld.nl/actielijst',
+                icon: 'check-square',
+                color: '#4F86F7',
+                category: 'Productiviteit'
+            },
+            {
+                id: 'tile-2',
+                name: 'Roadmap Planning',
+                url: 'https://voorbeeld.nl/roadmap',
+                icon: 'map',
+                color: '#10B981',
+                category: 'Planning'
+            },
+            {
+                id: 'tile-3',
+                name: 'Systeem Analytics',
+                url: 'https://analytics.google.com',
+                icon: 'line-chart',
+                color: '#6366F1',
+                category: 'Beheer'
+            },
+            {
+                id: 'tile-4',
+                name: 'Database Console',
+                url: 'https://voorbeeld.nl/db',
+                icon: 'database',
+                color: '#F59E0B',
+                category: 'Development'
+            },
+            {
+                id: 'tile-5',
+                name: 'Infrastructuur Monitor',
+                url: 'https://voorbeeld.nl/infra',
+                icon: 'cpu',
+                color: '#14B8A6',
+                category: 'Beheer'
+            },
+            {
+                id: 'tile-6',
+                name: 'Documentatie Wiki',
+                url: 'https://notion.so',
+                icon: 'file-text',
+                color: '#A855F7',
+                category: 'Productiviteit'
+            },
+            {
+                id: 'tile-7',
+                name: 'Release Radar',
+                url: 'https://github.com',
+                icon: 'rocket',
+                color: '#EF4444',
+                category: 'Development'
+            },
+            {
+                id: 'tile-8',
+                name: 'Security Shield',
+                url: 'https://voorbeeld.nl/security',
+                icon: 'shield',
+                color: '#64748B',
+                category: 'Beheer'
+            }
+        ];
+
+        // State Variables
+        let tiles = [];
+        let activeCategoryFilter = 'ALL';
+        let draggedTileId = null;
+        let confirmResolver = null;
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            loadTilesFromStorage();
+            renderCategoryChips();
+            renderIconSelector();
+            renderColorSelector();
+            renderGrid();
+            lucide.createIcons();
+        });
+
+        // Local Storage Handling
+        function loadTilesFromStorage() {
+            const saved = localStorage.getItem('launchpad_tiles_v1');
+            if (saved) {
+                try {
+                    tiles = JSON.parse(saved);
+                } catch (e) {
+                    tiles = [...DEFAULT_TILES];
+                }
+            } else {
+                tiles = [...DEFAULT_TILES];
+            }
+        }
+
+        function saveTilesToStorage() {
+            localStorage.setItem('launchpad_tiles_v1', JSON.stringify(tiles));
+        }
+
+        function resetToDemoData() {
+            if (confirm("Weet je zeker dat je alle tegels wilt herstellen naar de standaard voorbeelden?")) {
+                tiles = JSON.parse(JSON.stringify(DEFAULT_TILES));
+                saveTilesToStorage();
+                activeCategoryFilter = 'ALL';
+                renderCategoryChips();
+                renderGrid();
+            }
+        }
+
+        // Render Category Filter Chips
+        function renderCategoryChips() {
+            const container = document.getElementById('category-chips-container');
+            const categories = ['ALL', ...new Set(tiles.map(t => t.category).filter(Boolean))];
+
+            container.innerHTML = categories.map(cat => {
+                const isActive = activeCategoryFilter === cat;
+                const label = cat === 'ALL' ? 'Alle Apps' : cat;
+                const badgeClass = isActive 
+                    ? 'bg-app-blue text-white font-semibold shadow-2xs' 
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium';
+                
+                return `
+                    <button onclick="setCategoryFilter('${escapeHtml(cat)}')" class="text-xs px-3 py-1 rounded-lg transition whitespace-nowrap ${badgeClass}">
+                        ${escapeHtml(label)}
+                    </button>
+                `;
+            }).join('');
+
+            // Also update datalist for modal dropdown
+            const datalist = document.getElementById('datalist-categories');
+            const uniqueCats = [...new Set(tiles.map(t => t.category).filter(Boolean))];
+            datalist.innerHTML = uniqueCats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+        }
+
+        function setCategoryFilter(cat) {
+            activeCategoryFilter = cat;
+            renderCategoryChips();
+            renderGrid();
+        }
+
+        // Search & Filtering
+        function applyFilterAndSearch() {
+            const searchVal = document.getElementById('search-input').value.trim();
+            const clearBtn = document.getElementById('search-clear-btn');
+            
+            if (searchVal) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            renderGrid();
+        }
+
+        function clearSearch() {
+            document.getElementById('search-input').value = '';
+            document.getElementById('search-clear-btn').classList.add('hidden');
+            renderGrid();
+        }
+
+        function getFilteredTiles() {
+            const search = document.getElementById('search-input').value.toLowerCase();
+            
+            return tiles.filter(tile => {
+                const matchesCat = activeCategoryFilter === 'ALL' || tile.category === activeCategoryFilter;
+                const matchesSearch = !search || 
+                    (tile.name && tile.name.toLowerCase().includes(search)) ||
+                    (tile.category && tile.category.toLowerCase().includes(search)) ||
+                    (tile.url && tile.url.toLowerCase().includes(search));
+
+                return matchesCat && matchesSearch;
+            });
+        }
+
+        // Render Tiles Grid
+        function renderGrid() {
+            const grid = document.getElementById('tiles-grid');
+            const emptyState = document.getElementById('empty-state');
+            const filtered = getFilteredTiles();
+
+            document.getElementById('app-count-badge').textContent = `${tiles.length} apps`;
+            document.getElementById('footer-count-text').textContent = `${filtered.length} van ${tiles.length} tegels getoond`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            grid.innerHTML = filtered.map(tile => {
+                const accent = tile.color || '#4F86F7';
+                const contrastColor = getContrastTextColor(accent);
+
+                return `
+                    <div id="tile-${tile.id}"
+                         draggable="true"
+                         ondragstart="handleDragStart(event, '${tile.id}')"
+                         ondragover="handleDragOver(event)"
+                         ondragenter="handleDragEnter(event)"
+                         ondragleave="handleDragLeave(event)"
+                         ondrop="handleDrop(event, '${tile.id}')"
+                         ondragend="handleDragEnd(event)"
+                         onclick="openAppUrl('${escapeHtml(tile.url)}')"
+                         class="tile-card group relative bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-4 shadow-2xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between h-36">
+                        
+                        <!-- Top Row: Icon Badge & Edit Button -->
+                        <div class="flex items-start justify-between">
+                            <div class="p-2.5 rounded-xl transition group-hover:scale-105 duration-200 shadow-2xs" 
+                                 style="background-color: ${accent}; color: ${contrastColor};">
+                                <i data-lucide="${tile.icon || 'layout'}" class="w-5 h-5"></i>
+                            </div>
+
+                            <div class="flex items-center space-x-1 opacity-80 group-hover:opacity-100 transition">
+                                ${tile.category ? `
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 uppercase tracking-wider truncate max-w-[90px]">
+                                        ${escapeHtml(tile.category)}
+                                    </span>
+                                ` : ''}
+                                <button onclick="event.stopPropagation(); openTileModal('${tile.id}')" 
+                                        class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition" 
+                                        title="Tegel bewerken">
+                                    <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Bottom Row: Title & Link Indicator -->
+                        <div class="mt-2">
+                            <h3 class="font-bold text-slate-800 text-sm group-hover:text-app-blue transition line-clamp-1">
+                                ${escapeHtml(tile.name)}
+                            </h3>
+                            <p class="text-[11px] text-slate-400 truncate mt-0.5 flex items-center gap-1 font-mono">
+                                <span>${cleanUrlDisplay(tile.url)}</span>
+                                <i data-lucide="external-link" class="w-3 h-3 text-slate-300 group-hover:text-app-blue transition"></i>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Open Webapp URL in new tab
+        function openAppUrl(url) {
+            if (!url) return;
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+            }
+            window.open(url, '_blank');
+        }
+
+        // Launch All URL's
+        function launchAllApps() {
+            const filtered = getFilteredTiles();
+            if (filtered.length === 0) {
+                alert("Er zijn geen tegels om te openen.");
+                return;
+            }
+
+            if (confirm(`Wil je alle ${filtered.length} URL's van de huidige weergave tegelijk in nieuwe tabbladen openen?`)) {
+                let openedCount = 0;
+                filtered.forEach(tile => {
+                    if (tile.url) {
+                        let url = tile.url;
+                        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                            url = 'https://' + url;
+                        }
+                        const win = window.open(url, '_blank');
+                        if (win) openedCount++;
+                    }
+                });
+
+                if (openedCount < filtered.length) {
+                    alert("Sommige tabbladen konden niet worden geopend. Zorg ervoor dat je browser pop-ups toestaat voor deze website!");
+                }
+            }
+        }
+
+        // DRAG AND DROP REORDER LOGIC
+        function handleDragStart(e, id) {
+            draggedTileId = id;
+            e.dataTransfer.effectAllowed = 'move';
+            e.target.classList.add('dragging');
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDragEnter(e) {
+            e.preventDefault();
+            const targetCard = e.currentTarget;
+            if (targetCard && !targetCard.classList.contains('dragging')) {
+                targetCard.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            const targetCard = e.currentTarget;
+            if (targetCard) {
+                targetCard.classList.remove('drag-over');
+            }
+        }
+
+        function handleDrop(e, targetId) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const targetCard = e.currentTarget;
+            if (targetCard) targetCard.classList.remove('drag-over');
+
+            if (!draggedTileId || draggedTileId === targetId) return;
+
+            const fromIndex = tiles.findIndex(t => t.id === draggedTileId);
+            const toIndex = tiles.findIndex(t => t.id === targetId);
+
+            if (fromIndex !== -1 && toIndex !== -1) {
+                const [movedTile] = tiles.splice(fromIndex, 1);
+                tiles.splice(toIndex, 0, movedTile);
+                saveTilesToStorage();
+                renderGrid();
+            }
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.tile-card').forEach(card => {
+                card.classList.remove('drag-over');
+            });
+            draggedTileId = null;
+        }
+
+        // MODAL LOGIC FOR ADD / EDIT TILE
+        function renderIconSelector() {
+            const container = document.getElementById('icon-selector-grid');
+            container.innerHTML = AVAILABLE_ICONS.map(icon => `
+                <button type="button" onclick="selectIcon('${icon}')" 
+                        id="icon-btn-${icon}" 
+                        class="p-2 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition">
+                    <i data-lucide="${icon}" class="w-4 h-4"></i>
+                </button>
+            `).join('');
+        }
+
+        function selectIcon(icon) {
+            document.getElementById('tile-icon').value = icon;
+            AVAILABLE_ICONS.forEach(i => {
+                const btn = document.getElementById(`icon-btn-${i}`);
+                if (btn) {
+                    if (i === icon) {
+                        btn.className = "p-2 flex items-center justify-center rounded-lg border-2 border-app-blue bg-app-blue/10 text-app-blue transition";
+                    } else {
+                        btn.className = "p-2 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 transition";
+                    }
+                }
+            });
+        }
+
+        function renderColorSelector() {
+            const container = document.getElementById('color-selector-container');
+            container.innerHTML = COLOR_OPTIONS.map(col => `
+                <button type="button" onclick="selectColor('${col.hex}')" 
+                        id="color-btn-${col.hex.replace('#','')}" 
+                        style="background-color: ${col.hex}"
+                        class="w-7 h-7 rounded-full border-2 border-transparent transition hover:scale-110 shadow-2xs" 
+                        title="${col.name}">
+                </button>
+            `).join('');
+        }
+
+        function selectColor(hex) {
+            document.getElementById('tile-color').value = hex;
+            COLOR_OPTIONS.forEach(c => {
+                const btn = document.getElementById(`color-btn-${c.hex.replace('#','')}`);
+                if (btn) {
+                    if (c.hex === hex) {
+                        btn.style.borderColor = '#1e293b';
+                        btn.style.transform = 'scale(1.15)';
+                    } else {
+                        btn.style.borderColor = 'transparent';
+                        btn.style.transform = 'scale(1)';
+                    }
+                }
+            });
+        }
+
+        function openTileModal(tileId = null) {
+            const modal = document.getElementById('modal-tile');
+            const form = document.getElementById('form-tile');
+            const modalTitle = document.getElementById('modal-tile-title');
+            const deleteBtn = document.getElementById('btn-delete-tile');
+
+            form.reset();
+
+            if (tileId) {
+                const tile = tiles.find(t => t.id === tileId);
+                if (tile) {
+                    modalTitle.textContent = "Tegel Bewerken";
+                    document.getElementById('tile-id').value = tile.id;
+                    document.getElementById('tile-name').value = tile.name;
+                    document.getElementById('tile-url').value = tile.url;
+                    document.getElementById('tile-category').value = tile.category || '';
+                    selectIcon(tile.icon || 'layout');
+                    selectColor(tile.color || '#4F86F7');
+                    deleteBtn.classList.remove('hidden');
+                }
+            } else {
+                modalTitle.textContent = "Nieuwe Tegel Toevoegen";
+                document.getElementById('tile-id').value = '';
+                selectIcon('layout');
+                selectColor('#4F86F7');
+                deleteBtn.classList.add('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeTileModal() {
+            document.getElementById('modal-tile').classList.add('hidden');
+        }
+
+        function handleTileFormSubmit(e) {
+            e.preventDefault();
+
+            const id = document.getElementById('tile-id').value;
+            const name = document.getElementById('tile-name').value.trim();
+            const url = document.getElementById('tile-url').value.trim();
+            const category = document.getElementById('tile-category').value.trim();
+            const icon = document.getElementById('tile-icon').value;
+            const color = document.getElementById('tile-color').value;
+
+            if (id) {
+                const tile = tiles.find(t => t.id === id);
+                if (tile) {
+                    tile.name = name;
+                    tile.url = url;
+                    tile.category = category;
+                    tile.icon = icon;
+                    tile.color = color;
+                }
+            } else {
+                const newTile = {
+                    id: 'tile-' + Date.now(),
+                    name,
+                    url,
+                    category,
+                    icon,
+                    color
+                };
+                tiles.push(newTile);
+            }
+
+            saveTilesToStorage();
+            renderCategoryChips();
+            renderGrid();
+            closeTileModal();
+        }
+
+        function deleteCurrentTile() {
+            const id = document.getElementById('tile-id').value;
+            if (!id) return;
+
+            confirmAction("Weet je zeker dat je deze tegel wilt verwijderen?").then(confirmed => {
+                if (confirmed) {
+                    tiles = tiles.filter(t => t.id !== id);
+                    saveTilesToStorage();
+                    renderCategoryChips();
+                    renderGrid();
+                    closeTileModal();
+                }
+            });
+        }
+
+        // CONFIRM MODAL PROMISE WRAPPER
+        function confirmAction(message) {
+            return new Promise((resolve) => {
+                document.getElementById('confirm-message').textContent = message;
+                document.getElementById('modal-confirm').classList.remove('hidden');
+                confirmResolver = resolve;
+            });
+        }
+
+        function closeConfirmModal(result) {
+            document.getElementById('modal-confirm').classList.add('hidden');
+            if (confirmResolver) {
+                confirmResolver(result);
+                confirmResolver = null;
+            }
+        }
+
+        // IMPORT / EXPORT JSON
+        function exportToJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tiles, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `launchpad_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importJSONConfig(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        tiles = imported;
+                        saveTilesToStorage();
+                        renderCategoryChips();
+                        renderGrid();
+                        alert('Tegels succesvol geïmporteerd!');
+                    } else {
+                        alert('Ongeldig bestand. Verwacht een lijst van tegels.');
+                    }
+                } catch (err) {
+                    alert('Fout bij het importeren van JSON: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // UTILITY FUNCTIONS
+        function cleanUrlDisplay(url) {
+            if (!url) return '';
+            return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        }
+
+        function getContrastTextColor(hexColor) {
+            if (!hexColor || hexColor.length < 6) return '#ffffff';
+            const hex = hexColor.replace('#', '');
+            const r = parseInt(hex.substr(0,2), 16);
+            const g = parseInt(hex.substr(2,2), 16);
+            const b = parseInt(hex.substr(4,2), 16);
+            const yiq = ((r*299)+(g*587)+(b*114))/1000;
+            return (yiq >= 140) ? '#1e293b' : '#ffffff';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+    </script>
+</body>
+</html>
